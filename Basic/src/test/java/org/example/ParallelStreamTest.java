@@ -29,6 +29,10 @@ public class ParallelStreamTest {
     class Item {
         private Integer id;
 
+        Item(Integer id) {
+            this.id = id;
+        }
+
         public void setId(Integer id) {
             this.id = id;
         }
@@ -42,27 +46,33 @@ public class ParallelStreamTest {
     public void test() {
         List<Item> input = new ArrayList<>();
         List<Integer> integers = new ArrayList<>();
-        int count = 10000;
+        int count = 10;
+
+        IntStream.range(0, count).forEach(x -> input.add(new Item(x)));
+
         CountDownLatch countDownLatch = new CountDownLatch(count);
-        IntStream.range(0, count).forEach(integers::add);
         ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(4, 100, 120, TimeUnit.MINUTES, new LinkedBlockingDeque<>());
 
         IntStream.range(0, count).forEach(i -> {
+            System.out.println("Start to process " + i);
             Optional<Item> optional = input.parallelStream().filter(item -> (item.getId().equals(i))).findAny();
             threadPoolExecutor.submit(new Runnable() {
                 @Override
                 public void run() {
-                    try {
-                        assertTrue(optional.get().getId().equals(i));
-                        System.out.println(i);
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    } finally {
-                        countDownLatch.countDown();
+                    if (optional.isPresent()) {
+                        try {
+                            assertTrue(optional.get().getId().equals(i));
+//                            System.out.println(Thread.currentThread().getName() + ":" + i);
+                            Thread.currentThread().sleep(1000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        } finally {
+                            countDownLatch.countDown();
+                        }
                     }
                 }
             });
+
 
         });
 
@@ -76,7 +86,7 @@ public class ParallelStreamTest {
     }
 
     @Test
-    public void test_retry(){
+    public void test_retry() {
         for (int i = 0; i < 10; i++) {
             test();
         }
